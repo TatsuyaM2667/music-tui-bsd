@@ -27,7 +27,42 @@ use crossterm::{
 
 use souvlaki::{MediaControlEvent, MediaMetadata, MediaPlayback};
 
+/// TUI を表示している間は、標準エラーを $XDG_STATE_HOME/music-tui/stderr.log へ回す。
+/// ALSA / PipeWire(C のライブラリ)は underrun などのメッセージを直接 stderr に書くので、
+/// そのままだと画面の上に文字が重なって、ratatui の差分描画では消えずに残る
+static SAVED_STDERR: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+
+fn redirect_stderr() {
+    let dir = std::env::var("XDG_STATE_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|_| std::env::var("HOME").map(|h| std::path::PathBuf::from(h).join(".local/state")))
+        .unwrap_or_else(|_| std::env::temp_dir())
+        .join("music-tui");
+    let _ = std::fs::create_dir_all(&dir);
+    let Ok(file) = std::fs::File::create(dir.join("stderr.log")) else {
+        return;
+    };
+    use std::os::fd::AsRawFd;
+    unsafe {
+        let saved = libc::dup(2);
+        if saved >= 0 && libc::dup2(file.as_raw_fd(), 2) >= 0 {
+            SAVED_STDERR.store(saved, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+}
+
+fn restore_stderr() {
+    let saved = SAVED_STDERR.swap(-1, std::sync::atomic::Ordering::SeqCst);
+    if saved >= 0 {
+        unsafe {
+            libc::dup2(saved, 2);
+            libc::close(saved);
+        }
+    }
+}
+
 fn restore_terminal() {
+    restore_stderr();
     let _ = terminal::disable_raw_mode();
     let _ = execute!(stdout(), DisableMouseCapture, Show, LeaveAlternateScreen);
 }
@@ -53,6 +88,7 @@ async fn main() -> Result<()> {
         EnableMouseCapture
     )?;
     terminal::enable_raw_mode()?;
+    redirect_stderr();
 
     let backend = CrosstermBackend::new(out);
     let mut terminal = Terminal::new(backend)?;
@@ -366,6 +402,10 @@ async fn main() -> Result<()> {
                                         cmd.arg("--force-window");
                                         cmd.arg("--user-agent=Mozilla/5.0");
                                         cmd.arg(url);
+                                        // mpv の出力が TUI の画面に重ならないように
+                                        cmd.stdin(std::process::Stdio::null())
+                                            .stdout(std::process::Stdio::null())
+                                            .stderr(std::process::Stdio::null());
                                         let _ = cmd.spawn();
                                     }
                                 }

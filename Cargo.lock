@@ -2167,6 +2167,7 @@ dependencies = [
  "futures-util",
  "id3",
  "image",
+ "libc",
  "lru",
  "once_cell",
  "rand 0.8.5",
