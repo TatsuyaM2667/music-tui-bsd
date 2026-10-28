@@ -1,0 +1,4 @@
+# musl の Rust は既定で完全な静的リンクになるが、それだと ALSA が PipeWire のプラグイン
+# (libasound_module_pcm_pipewire.so)を dlopen できず、音が出ない。動的リンクにする。
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=-crt-static"]

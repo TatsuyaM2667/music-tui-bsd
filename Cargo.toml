@@ -8,7 +8,7 @@ ratatui = "0.30"
 lru = "0.16.3"
 crossterm = "0.27"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.11", features = ["json", "blocking", "stream"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "blocking", "stream", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
 rodio = { version = "0.19", features = ["mp3"] }
@@ -22,5 +22,5 @@ id3 = "1.16.4"
 image = { version = "0.25.10", features = ["png", "jpeg"] }
 ratatui-image = { version = "10.0.6", default-features = false, features = ["crossterm", "image-defaults"] }
 terminal-pixel-animation = "0.3.0"
-souvlaki = "0.8.3"
+souvlaki = { version = "0.8.3", default-features = false, features = ["use_zbus"] }
 rand = "0.8"

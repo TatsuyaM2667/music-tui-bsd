@@ -313,7 +313,13 @@ fn render_lyrics(frame: &mut ratatui::Frame, state: &mut AppState, area: Rect) {
         // Try cached braille cells first
         if let Some(cells) = &state.video_cells {
             if state.video_cell_area == Some(area) && !state.video_frame_dirty {
-                crate::renderer::render_braille_cells(frame, cells, area.width as u32, area.height as u32, area);
+                crate::renderer::render_braille_cells(
+                    frame,
+                    cells,
+                    area.width as u32,
+                    area.height as u32,
+                    area,
+                );
                 return;
             }
         }
@@ -323,7 +329,8 @@ fn render_lyrics(frame: &mut ratatui::Frame, state: &mut AppState, area: Rect) {
             let cell_w = area.width as u32;
             let cell_h = area.height as u32;
             if cell_w > 0 && cell_h > 0 {
-                if let Some(cells) = crate::renderer::render_braille(&pixels, w, h, cell_w, cell_h) {
+                if let Some(cells) = crate::renderer::render_braille(&pixels, w, h, cell_w, cell_h)
+                {
                     state.video_cells = Some(cells.clone());
                     state.video_cell_area = Some(area);
                     state.video_frame_dirty = false;

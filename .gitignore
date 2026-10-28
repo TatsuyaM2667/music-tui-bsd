@@ -22,3 +22,8 @@ test.odin
 # Scripts
 generate_music_index.py
 generate_music_index.py
+
+# Local data / build leftovers
+playlists.json
+alsa-lib-*/
+alsa-lib-*.tar.*

@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use futures_util::StreamExt;
-use std::sync::Arc;
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::io::StreamReader;
-use once_cell::sync::Lazy;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TrackInfo {
@@ -20,23 +20,22 @@ pub struct TrackInfo {
 }
 
 // 環境変数から URL を取得する。設定されていない場合はパニックせずに空文字などを返す
-static BASE_URL: Lazy<String> = Lazy::new(|| {
-    std::env::var("WORKERS_URL").unwrap_or_else(|_| "".to_string())
-});
+static BASE_URL: Lazy<String> =
+    Lazy::new(|| std::env::var("WORKERS_URL").unwrap_or_else(|_| "".to_string()));
 
 pub async fn fetch_tracks_streaming(
     tx_track: tokio::sync::mpsc::Sender<TrackInfo>,
     tx_progress: tokio::sync::mpsc::Sender<f64>,
-    pause_signal: Arc<AtomicBool>
+    pause_signal: Arc<AtomicBool>,
 ) -> Result<()> {
     let url = format!("{}/tracks", *BASE_URL);
     let res = reqwest::get(url).await?;
     let total_size = res.content_length().unwrap_or(1);
-    
+
     let mut downloaded: u64 = 0;
-    let stream = res.bytes_stream().map(|result| {
-        result.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-    });
+    let stream = res
+        .bytes_stream()
+        .map(|result| result.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
     let reader = StreamReader::new(stream);
     let mut lines = BufReader::new(reader).lines();
 
@@ -62,15 +61,27 @@ fn safe_encode_path(path: &str) -> String {
 }
 
 pub fn stream_url_from_path(path: &str) -> String {
-    format!("{}/stream/{}", *BASE_URL, safe_encode_path(path.trim_start_matches('/')))
+    format!(
+        "{}/stream/{}",
+        *BASE_URL,
+        safe_encode_path(path.trim_start_matches('/'))
+    )
 }
 
 pub fn video_url_from_path(path: &str) -> String {
-    format!("{}/stream/{}", *BASE_URL, safe_encode_path(path.trim_start_matches('/')))
+    format!(
+        "{}/stream/{}",
+        *BASE_URL,
+        safe_encode_path(path.trim_start_matches('/'))
+    )
 }
 
 pub fn lyrics_url_from_path(path: &str) -> String {
-    format!("{}/lyrics/{}", *BASE_URL, safe_encode_path(path.trim_start_matches('/')))
+    format!(
+        "{}/lyrics/{}",
+        *BASE_URL,
+        safe_encode_path(path.trim_start_matches('/'))
+    )
 }
 
 pub async fn fetch_lyrics_from_url(url: &str) -> Result<String> {
@@ -81,10 +92,7 @@ pub async fn fetch_lyrics_from_url(url: &str) -> Result<String> {
 pub async fn update_track_order(tracks: &[TrackInfo]) -> Result<()> {
     let url = format!("{}/reorder", *BASE_URL);
     let client = reqwest::Client::new();
-    let res = client.post(url)
-        .json(tracks)
-        .send()
-        .await?;
+    let res = client.post(url).json(tracks).send().await?;
     if !res.status().is_success() {
         return Err(anyhow::anyhow!("Failed to update order: {}", res.status()));
     }

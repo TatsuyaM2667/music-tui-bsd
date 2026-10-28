@@ -4,11 +4,11 @@
 [![Odin](https://img.shields.io/badge/language-Odin-blueviolet.svg)](https://odin-lang.org/)
 [![Zig](https://img.shields.io/badge/language-Zig-f7a41d.svg)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/license-Custom%20Non--Commercial-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.kernel.org/)
+[![Platform](https://img.shields.io/badge/platform-FreeBSD%20%7C%20Linux-lightgrey.svg)](https://www.freebsd.org/)
 
 `music-tui` は、Rust / Odin / Zig の3言語を組み合わせたターミナルベースの音楽プレイヤーです。ターミナル上で動画(MV)をレンダリングするなど、従来のTUIアプリにはない高度なマルチメディア体験を提供します。
 
-> **Note**: 本プロジェクトは **Arch Linux** 環境で開発・テストされています。
+> **Note**: FreeBSD と Linux(Chimera Linux など)で動きます。[TatsuyaM2667/music-tui](https://github.com/TatsuyaM2667/music-tui) を FreeBSD 向けに整えたものです。
 
 ## 特徴
 
@@ -20,7 +20,7 @@
 - **プレイリスト**: カスタムプレイリストの作成・管理。
 - **シャッフル再生**: ランダム再生対応。
 - **音量調整**: キーボードから音量操作可能。
-- **OSメディア統合**: MPRIS (Linux) 経由でOSのメディアコントロールに対応。
+- **OSメディア統合**: MPRIS(FreeBSD / Linux の D-Bus)経由でOSのメディアコントロールに対応。
 
 ### ターミナル動画レンダリング
 
@@ -77,27 +77,50 @@
 
 - **Rust** (stable)
 - **Odin** (brailleレンダラのコンパイルに必要)
-- **Zig** (half-blockレンダラのコンパイルに必要 - 現在は未リンク)
 - **ffmpeg** (動画/音声ストリーミングのデコードに必要)
-- **mpv** (外部動画再生オプションに必要)
+- **mpv** (外部動画再生オプション `V` に必要)
+- **ALSA** (音声出力。rodio / cpal が使用)
+- **D-Bus** (MPRIS。ダッシュボードなどへの曲情報・アルバムアート・再生位置)
 - **ネットワーク接続**: ストリーミング再生および歌詞の取得に必要。
+
+### FreeBSD
+
+```sh
+doas pkg install rust pkgconf alsa-lib alsa-plugins ffmpeg mpv dbus
+```
+
+- 音声は ALSA → OSS(`alsa-plugins` の OSS プラグイン)で出ます。出力先は OSS の既定(`sysctl hw.snd.default_unit`)です。
+- Odin は FreeBSD のパッケージに無いため、ソースからビルドして PATH に置くか、`ODIN=/path/to/odin cargo build --release` で場所を指定してください。
+  [ame-shell](https://github.com/TatsuyaM2667/ame-shell) の FreeBSD インストーラを使っている場合は、それが作った `/usr/local/ame-toolchain/odin-*/odin` を自動で使います。
+- MPRIS は D-Bus のセッションバスがあれば有効です(ame-shell のセッションでは自動)。
+
+### Linux
+
+ディストリのパッケージで `rust` `alsa-lib`(開発用ヘッダ)`pkg-config` `ffmpeg` `mpv` と Odin を入れてください。
+musl の環境(Chimera Linux / Alpine など)では、ALSA が PipeWire のプラグインを読めるよう動的リンクでビルドします(`.cargo/config.toml` で設定済み)。
 
 ## インストールと実行
 
 1. リポジトリをクローンします。
 2. `.env.example` を参考に `.env` ファイルを作成し、必要な環境変数を設定します。
 
-```bash
+```sh
 cp .env.example .env
 # .env を編集して WORKERS_URL を設定
 ```
 
 3. ビルド＆実行:
 
-```bash
+```sh
 cargo run --release
 ```
 
+## ame-shell との連携
+
+[ame-shell](https://github.com/TatsuyaM2667/ame-shell) のダッシュボード(メディア)に、アルバム名・アルバムアート・同期歌詞が出ます。
+
+- MPRIS で曲名・アーティスト・アルバム・長さ・アルバムアート・再生位置(再生中は 1 秒ごと)を送ります。ダッシュボードからのシーク(歌詞の行をクリック)にも対応。
+- 取得した同期歌詞を `$XDG_RUNTIME_DIR/lyrics/music_tui.lrc`(`[ti:]` `[ar:]` `[al:]` 付き)に書き出し、ame-shell はそれを優先して表示します。
 ## 操作方法
 
 ### ノーマルモード

@@ -143,7 +143,10 @@ impl AppState {
         let picker = Picker::from_query_stdio().ok();
         let (tx, rx) = mpsc::channel(32);
 
-        #[cfg(target_os = "linux")]
+        #[cfg(all(
+            unix,
+            not(any(target_os = "macos", target_os = "ios", target_os = "android"))
+        ))]
         let media_controls = {
             use souvlaki::PlatformConfig;
             let config = PlatformConfig {
@@ -161,7 +164,10 @@ impl AppState {
                 None
             }
         };
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(all(
+            unix,
+            not(any(target_os = "macos", target_os = "ios", target_os = "android"))
+        )))]
         let media_controls = None;
 
         let mut menu_state = ListState::default();

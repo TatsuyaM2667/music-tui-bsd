@@ -1,7 +1,4 @@
-use ratatui::{
-    prelude::*,
-    widgets::Paragraph,
-};
+use ratatui::{prelude::*, widgets::Paragraph};
 
 /// Braille cell byte layout: [utf8_0..3, R, G, B, _]
 const BRAILLE_BYTES: usize = 8;
@@ -12,7 +9,11 @@ fn le_bytes_to_char(bytes: &[u8]) -> char {
 }
 
 /// Convert pre-rendered braille cells to ratatui Lines.
-pub fn braille_cells_to_lines(cells: &[u8], cell_width: u32, cell_height: u32) -> Vec<Line<'static>> {
+pub fn braille_cells_to_lines(
+    cells: &[u8],
+    cell_width: u32,
+    cell_height: u32,
+) -> Vec<Line<'static>> {
     let mut lines = Vec::with_capacity(cell_height as usize);
     for cy in 0..cell_height {
         let mut spans: Vec<Span> = Vec::with_capacity(cell_width as usize);

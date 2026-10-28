@@ -3,13 +3,33 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+/// Odin コンパイラを探す: 環境変数 ODIN → PATH の odin → ame-shell のインストーラが FreeBSD に作るもの
+/// (FreeBSD には Odin のパッケージが無いため)
+fn find_odin() -> PathBuf {
+    if let Ok(p) = env::var("ODIN") {
+        return PathBuf::from(p);
+    }
+    if Command::new("odin").arg("version").output().is_ok() {
+        return PathBuf::from("odin");
+    }
+    if let Ok(entries) = fs::read_dir("/usr/local/ame-toolchain") {
+        for e in entries.flatten() {
+            let p = e.path().join("odin");
+            if e.file_name().to_string_lossy().starts_with("odin") && p.exists() {
+                return p;
+            }
+        }
+    }
+    PathBuf::from("odin")
+}
+
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let src_dir = env::current_dir().unwrap().join("src");
     let source_file = src_dir.join("braille_renderer.odin");
 
     // 1. Odin コンパイル実行
-    let status = Command::new("odin")
+    let status = Command::new(find_odin())
         .current_dir(&out_dir)
         .arg("build")
         .arg(&source_file)
@@ -18,7 +38,7 @@ fn main() {
         .arg("-reloc-mode:pic")
         .arg("-out:braille")
         .status()
-        .expect("Failed to execute odin compiler");
+        .expect("Failed to execute odin compiler (install Odin or set ODIN=/path/to/odin)");
 
     if !status.success() {
         panic!("Odin compilation failed");
