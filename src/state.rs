@@ -150,7 +150,8 @@ impl AppState {
         let media_controls = {
             use souvlaki::PlatformConfig;
             let config = PlatformConfig {
-                dbus_name: "org.mpris.MediaPlayer2.music_tui",
+                // souvlaki が "org.mpris.MediaPlayer2." を前に付けるので、ここは後ろの部分だけ
+                dbus_name: "music_tui",
                 display_name: "Music TUI",
                 hwnd: None,
             };
