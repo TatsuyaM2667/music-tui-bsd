@@ -127,7 +127,16 @@ async fn main() -> Result<()> {
                         }
                     }
                     if state.playing_id.is_some() {
-                        state.is_paused = player::toggle_pause();
+                        // Play は止まっているときだけ、Pause は鳴っているときだけ切り替える
+                        // (以前はどれも反転していたので、再生中に Play が届くと止まっていた)
+                        let want_pause = match event {
+                            MediaControlEvent::Play => false,
+                            MediaControlEvent::Pause => true,
+                            _ => !state.is_paused,
+                        };
+                        if want_pause != state.is_paused {
+                            state.is_paused = player::toggle_pause();
+                        }
                         state.last_action = if state.is_paused {
                             "⏸".into()
                         } else {
@@ -1210,17 +1219,37 @@ fn publish_media(state: &mut AppState) {
     let paused = state.is_paused;
     let pos = player::get_position();
     if let Some(controls) = &mut state.media_controls {
-        let _ = controls.set_metadata(MediaMetadata {
-            title: Some(&title),
-            artist: Some(&artist),
-            album: Some(&album),
-            cover_url: art_url.as_deref(),
-            duration: if duration > 0.0 {
-                Some(Duration::from_secs_f64(duration))
-            } else {
-                None
-            },
-        });
+        // 曲の情報は変わったときだけ送る(毎秒送ると、受け取る側で曲が替わったように扱われることがある)
+        static LAST_META: once_cell::sync::Lazy<std::sync::Mutex<String>> =
+            once_cell::sync::Lazy::new(|| std::sync::Mutex::new(String::new()));
+        let key = format!(
+            "{title}\u{1f}{artist}\u{1f}{album}\u{1f}{:?}\u{1f}{duration}",
+            art_url
+        );
+        let changed = LAST_META
+            .lock()
+            .map(|mut last| {
+                if *last == key {
+                    false
+                } else {
+                    *last = key;
+                    true
+                }
+            })
+            .unwrap_or(true);
+        if changed {
+            let _ = controls.set_metadata(MediaMetadata {
+                title: Some(&title),
+                artist: Some(&artist),
+                album: Some(&album),
+                cover_url: art_url.as_deref(),
+                duration: if duration > 0.0 {
+                    Some(Duration::from_secs_f64(duration))
+                } else {
+                    None
+                },
+            });
+        }
         let progress = Some(souvlaki::MediaPosition(Duration::from_secs_f64(
             pos.max(0.0),
         )));
